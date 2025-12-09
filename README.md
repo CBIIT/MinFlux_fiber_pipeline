@@ -965,7 +965,5 @@ If you use this segmentation pipeline in a publication, please consider citing:
 }
 ```
 
-Adapt the citation to your preferred style and update the author list as appropriate.
-
 ---
 
