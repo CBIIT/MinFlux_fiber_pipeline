@@ -24,7 +24,7 @@ class PipelineConfig:
 
     # -------------------- I/O --------------------
     # Folder containing localization CSVs (each must have X,Y,Z,TraceID).
-    input_dir: str = "/path/to/localization_csvs"
+    input_dir: str = "/data4/Raw localizations & confocal/3D/localization_csvs"
 
     # Parent directory where results are stored.
     # If None, defaults to "<input_dir>/results".

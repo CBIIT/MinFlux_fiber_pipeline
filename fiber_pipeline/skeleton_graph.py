@@ -551,7 +551,7 @@ def extract_and_merge_segments(skeleton_path: str | Path,
      junc_ids) = build_adjacency_and_features()
 
     # first mutual‑best merging (near neighbors)
-    group_id = np.arange(len(segments), int)
+    group_id = np.arange(len(segments), dtype=int)
     group_id = run_mutual_best_merge(group_id,
                                      seg_theta,
                                      adjacent_segments,
