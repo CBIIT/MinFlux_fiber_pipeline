@@ -28,7 +28,6 @@ The code:
 8. [Hyperparameters & tuning guide](#hyperparameters--tuning-guide)
 9. [Fiber length & width estimation](#fiber-length--width-estimation)
 10. [Tips, troubleshooting, and limitations](#tips-troubleshooting-and-limitations)
-11. [License & citation](#license--citation)
 
 ---
 
@@ -173,13 +172,7 @@ source .venv/bin/activate   # on Windows: .venv\Scripts\activate
 
 ### 3. Install dependencies
 
-If the repo includes `requirements.txt`, run:
-
-```bash
-pip install -r requirements.txt
-```
-
-If not, you can manually install the core dependencies:
+Install the core dependencies:
 
 ```bash
 pip install \
@@ -233,7 +226,7 @@ RAW_DATA_ROOT/
     ...
 ```
 
-In `config.py`, you will typically specify something like:
+In `config.py`, you will specify something like:
 
 ```python
 RAW_DATA_ROOT = "/path/to/RAW_DATA_ROOT"
