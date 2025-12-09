@@ -190,19 +190,7 @@ pip install \
 
 Each **sample** is assumed to have at least:
 
-1. A **raw localization CSV**, e.g.:
-
-   ```text
-   <base_name>_RawLocs.csv
-   ```
-
-   Required columns (numeric, units in µm):
-
-   * `X`
-   * `Y`
-   * `Z`
-
-2. A **TraceID CSV** (for 3D grouping and labeling), e.g.:
+1. A **raw localization CSV with TraceID CSV** (for 3D grouping and labeling), e.g.:
 
    ```text
    <base_name>_RawLocs_IDs.csv
@@ -219,9 +207,7 @@ The pipeline is designed to operate on a **folder of samples**:
 
 ```text
 RAW_DATA_ROOT/
-    sample1_RawLocs.csv
     sample1_RawLocs_IDs.csv
-    sample2_RawLocs.csv
     sample2_RawLocs_IDs.csv
     ...
 ```
@@ -236,7 +222,6 @@ RESULTS_ROOT  = "/path/to/results"
 The pipeline will:
 
 * iterate over files in `RAW_DATA_ROOT`,
-* find pairs of matching `*_RawLocs.csv` and `*_RawLocs_IDs.csv`,
 * skip files that do not contain the necessary columns,
 * write results into:
 
