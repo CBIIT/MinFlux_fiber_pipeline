@@ -295,7 +295,7 @@ def run_cylinder_growth(df_ids,
 
     fig = plt.figure(figsize=(10, 9))
     ax = fig.add_subplot(111, projection="3d")
-    ax.set_title("3D cylinder‑grown fibers (starting from assigned_gid)",
+    ax.set_title("3D cylinder‑grown fibers",
                  fontsize=13)
 
     mask_noise = (lab_plot < 0)

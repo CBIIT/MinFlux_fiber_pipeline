@@ -53,17 +53,17 @@ class PipelineConfig:
     gauss_sigma_px_density: float = 2.0
 
     # -------------------- skeleton merging -------------------
-    angle_thresh_deg: float = 30.0
-    near_radius_px: float = 4.0
+    angle_thresh_deg: float = 40.0
+    near_radius_px: float = 5.0
     max_merge_iters: int = 500
     palette_seed: int = 7
     print_counts: bool = True
 
     # -------------------- 3D tubes (TraceID‑averaged) --------
     tube_diam_max: float = 0.2            # max tube diameter (µm)
-    search_radius: float = 0.1            # XY search radius around segment centerline
+    search_radius: float = 0.05            # XY search radius around segment centerline
     center_step: float = 0.05             # sampling step along segments (µm)
-    min_pts_per_sample: int = 20
+    min_pts_per_sample: int = 70
     max_xy_shift: float = 0.20            # clamp XY shift (µm)
 
     line_alpha: float = 0.80
@@ -72,12 +72,12 @@ class PipelineConfig:
     pt_alpha: float = 0.65
 
     # -------------------- cylinder growth --------------------
-    end_slice_len: float = 0.25
-    extend_step: float = 0.30
-    max_radius: float = 0.15
+    end_slice_len: float = 0.30
+    extend_step: float = 0.50
+    max_radius: float = 0.05
     min_pts_fiber: int = 30
-    min_pts_end: int = 10
-    max_global_iters: int = 200
+    min_pts_end: int = 5
+    max_global_iters: int = 1000
 
     pt_size_cyl: float = 4.0
     pt_alpha_cyl: float = 0.60
