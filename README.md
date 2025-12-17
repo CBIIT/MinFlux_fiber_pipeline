@@ -1,5 +1,6 @@
 # MINFLUX Fiber Segmentation Pipeline
 
+![Project Logo](3D_cylinder_grown_fibers.png)
 Segmentation pipeline for assigning 3D MINFLUX localizations to individual **actin / filamentous fibers**.
 
 The code:
