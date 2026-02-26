@@ -192,7 +192,7 @@ pip install \
 
 Each **sample** is assumed to have at least:
 
-1. A **raw localization CSV with TraceID CSV** (for 3D grouping and labeling), e.g.:
+1. A **raw localization CSV with TraceID** (for grouping and labeling), e.g.:
 
    ```text
    <base_name>_RawLocs_IDs.csv
@@ -202,13 +202,25 @@ Each **sample** is assumed to have at least:
 
    * `X`
    * `Y`
-   * `Z`
    * `TraceID`
+
+   Optional column:
+
+   * `Z`
+
+   If `Z` is missing, the pipeline runs in **2D mode**:
+
+   * it will synthesize a `Z` column filled with `0.0` so early stages can
+     keep using a consistent schema,
+   * it will run the full **2D** pipeline (KDE → segmentation → skeleton graph →
+     segment merging → overlays),
+   * it will **skip** all **3D-only** stages (3D tubes, cylinder growth, and
+     3D fiber metrics).
 
 The pipeline is designed to operate on a **folder of samples**:
 
 ```text
-RAW_DATA_ROOT/
+INPUT_DIR/
     sample1_RawLocs_IDs.csv
     sample2_RawLocs_IDs.csv
     ...
@@ -217,13 +229,13 @@ RAW_DATA_ROOT/
 In `config.py`, you will specify something like:
 
 ```python
-RAW_DATA_ROOT = "/path/to/RAW_DATA_ROOT"
-RESULTS_ROOT  = "/path/to/results"
+input_dir    = "/path/to/your/raw/csv/folder"
+results_root = "/path/to/write/results"  # or None to use "<input_dir>/results"
 ```
 
 The pipeline will:
 
-* iterate over files in `RAW_DATA_ROOT`,
+* iterate over files in `INPUT_DIR`,
 * skip files that do not contain the necessary columns,
 * write results into:
 
@@ -239,21 +251,25 @@ RESULTS_ROOT/
 
 1. **Edit `config.py`**
 
-   Set at least:
+   Set at least the I/O fields inside `PipelineConfig`:
 
    ```python
-   RAW_DATA_ROOT = "/path/to/your/raw/csv/folder"
-   RESULTS_ROOT  = "/path/to/write/results"
+   # Folder containing localization CSVs.
+   input_dir: str = "/path/to/your/raw/csv/folder"
+
+   # Parent directory where results are stored.
+   # If None, defaults to "<input_dir>/results".
+   results_root: Optional[str] = "/path/to/write/results"
    ```
 
-   and verify / adjust:
+   and verify / adjust core parameters (names as in `config.py`):
 
    ```python
-   PX_PER_UM       = 10.0
-   GAUSS_SIGMA_UM  = 0.05
-   PAD_UM          = 3 * GAUSS_SIGMA_UM
-   TUBENESS_SIGMA_PX = 1.0
-   UPSCALE_FACTOR  = 3
+   px_per_um: float = 10.0
+   gauss_sigma_um: float = 0.05
+   pad_factor: float = 3.0
+   tubeness_sigma_px: float = 1.0
+   upsample_factor: int = 3
    # segmentation parameters…
    # merging parameters…
    # tube / cylinder parameters…
@@ -264,16 +280,23 @@ RESULTS_ROOT/
    From the repository root:
 
    ```bash
-   python -m fiber_pipeline.run_folder
+   # Uses input_dir from config.py
+   python run_pipeline.py
    ```
 
-   or:
+   or explicitly pass an input folder:
 
    ```bash
-   python fiber_pipeline/run_folder.py
+   python run_pipeline.py /path/to/your/raw/csv/folder
    ```
 
 3. **Inspect outputs**
+
+   *In 2D mode (no Z column):* you will still get all FIJI outputs, overlays,
+   and segment-merge diagnostics, but **no** 3D plots / labeled CSVs / metrics.
+
+   *In 3D mode (with Z):* you will additionally get per-localization fiber
+   labels and per-fiber metrics.
 
    For each sample `<base_name>` the pipeline will create:
 
@@ -284,7 +307,7 @@ RESULTS_ROOT/
                # intermediate TIFs, masks, skeletons
            # PNGs with overlays and labeled skeletons
            <base_name>_TraceID_avg_with_fiber_grow_id.csv
-           <base_name>_RawLocs_IDs_with_fiber_grow_id.csv
+           <base_name>_localizations_with_fiber_grow_id.csv
            fiber_metrics.csv
    ```
 
@@ -298,9 +321,9 @@ For each sample:
 2. **Apply a tubeness filter and segment fibers in 2D.**
 3. **Skeletonize the mask and convert it into a graph of segments.**
 4. **Merge segments into longer 2D fibers using geometry and adjacency.**
-5. **Map those 2D fibers into 3D using MINFLUX localizations (via TraceID averaging).**
-6. **Optionally grow fibers in 3D as cylinders, refining membership.**
-7. **Export final per‑localization labels and per‑fiber length/width metrics.**
+5. **(3D mode only)** Map those 2D fibers into 3D using MINFLUX localizations (via TraceID averaging).
+6. **(3D mode only)** Optionally grow fibers in 3D as cylinders, refining membership.
+7. **(3D mode only)** Export final per‑localization labels and per‑fiber length/width metrics.
 
 ---
 
@@ -493,6 +516,10 @@ Result: integer `merged_group_id` for each segment, forming a 2D segmentation of
 
 ### 5. 3D tube centerlines from MINFLUX localizations
 
+> **Note:** This stage runs only when the input CSV contains a real `Z` column
+> (i.e. **3D mode**). In **2D mode** (no Z column), the pipeline skips all
+> tube-building and cylinder-growth steps.
+
 **Module:** `tubes_3d.py`
 **Config:** `TUBE_DIAM_MAX`, `TUBE_RADIUS`, `SEARCH_RADIUS`, `CENTER_STEP`, `MIN_PTS_PER_SAMPLE`, `MAX_XY_SHIFT`
 
@@ -500,7 +527,7 @@ Result: integer `merged_group_id` for each segment, forming a 2D segmentation of
 
    * Read the `*_RawLocs_IDs.csv` file.
 
-   * Ensure it contains `X, Y, Z, TraceID`.
+   * Ensure it contains `X, Y, TraceID` (and `Z` for 3D mode).
 
    * Group by `TraceID`:
 
@@ -622,6 +649,10 @@ This step is **optional** in principle but is currently integrated as the final 
 
 For each sample `<base_name>`, the pipeline writes a folder:
 
+> In **2D mode** (input has no `Z` column), the pipeline still writes all
+> FIJI outputs, skeleton overlays, and segment-merge diagnostic images, but it
+> **does not** write any of the 3D plots/CSVs/metrics listed below.
+
 ```text
 RESULTS_ROOT/
     <base_name>/
@@ -641,16 +672,18 @@ RESULTS_ROOT/
         segments_merged_adjacent_mutual_unique.png
         segments_merged_near_neighbor.png
         segments_final_branch_split.png
-        3D_tubes_avg_points.png
-        3D_cylinder_grown_fibers.png
-        <base_name>_TraceID_avg_with_fiber_grow_id.csv
-        <base_name>_RawLocs_IDs_with_fiber_grow_id.csv
-        fiber_metrics.csv
+        3D_tubes_avg_points.png                      # 3D inputs only
+        3D_cylinder_grown_fibers.png                 # 3D inputs only
+        <base_name>_TraceID_avg_with_fiber_grow_id.csv  # 3D inputs only
+        <base_name>_localizations_with_fiber_grow_id.csv  # 3D inputs only
+        fiber_metrics.csv                            # 3D inputs only
 ```
 
 ### Key CSVs
 
 #### `<base_name>_TraceID_avg_with_fiber_grow_id.csv`
+
+> **3D mode only**
 
 * One row per `TraceID` (averaged localization).
 * Contains at least:
@@ -660,7 +693,9 @@ RESULTS_ROOT/
   * `N` (number of raw localizations)
   * `fiber_grow_id` (final fiber label, or -1 for unassigned/noise).
 
-#### `<base_name>_RawLocs_IDs_with_fiber_grow_id.csv`
+#### `<base_name>_localizations_with_fiber_grow_id.csv`
+
+> **3D mode only**
 
 * Raw localization table, with original per‑localization rows and columns:
 
@@ -669,6 +704,8 @@ RESULTS_ROOT/
   * `fiber_grow_id` propagated from the averaged table.
 
 #### `fiber_metrics.csv`
+
+> **3D mode only**
 
 * One row per **final fiber** (unique `fiber_grow_id >= 0`).
 * Columns (canonical):
