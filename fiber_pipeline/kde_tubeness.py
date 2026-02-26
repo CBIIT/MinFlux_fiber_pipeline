@@ -157,7 +157,8 @@ def run_kde_and_tubeness(csv_path: str | Path,
     csv_path : str or Path
         Path to the localization CSV (used only for naming).
     df : pandas.DataFrame
-        Localization table with columns X,Y,Z,TraceID.
+        Localization table with columns X,Y,TraceID (and optionally Z).
+        The KDE+tubeness stage only uses X and Y.
     out_dir : str or Path
         Folder where TIFFs are written.
 

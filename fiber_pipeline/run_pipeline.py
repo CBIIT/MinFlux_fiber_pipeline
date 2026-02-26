@@ -16,17 +16,23 @@ is used. Results are written to:
 where `results_root` is either `config.PIPELINE_CONFIG.results_root`
 (if not None) or `<input_dir>/results`.
 
-For each CSV in the input folder that contains columns X, Y, Z, TraceID,
-the following outputs are created inside the sample folder:
+For each CSV in the input folder that contains at least X, Y, TraceID
+(and optionally Z), the following outputs are created inside the sample folder:
 
     * FIJI‑style TIFFs / PNGs (in <base>_FIJI_OUT/)
     * skeleton + density overlays
     * segment overlays
+If the input is **3D** (X,Y,Z,TraceID), the full pipeline runs and additionally
+produces:
+
     * 3D tubes plot
     * 3D cylinder‑grown fibers plot
     * <base>_TraceID_avg_with_fiber_grow_id.csv
     * <base>_localizations_with_fiber_grow_id.csv
     * fiber_metrics.csv  (columns: fiber_id, fiber_length_um, fiber_width_um)
+
+If the input is **2D** (X,Y,TraceID only), Z is synthesized as 0.0 for
+compatibility but the 3D‑specific stages are skipped.
 """
 
 from __future__ import annotations
@@ -44,8 +50,8 @@ from kde_tubeness import run_kde_and_tubeness
 from fiber_segmentation import run_fiber_segmentation
 from overlays import make_density_overlay, make_junction_overlay
 from skeleton_graph import extract_and_merge_segments
-from tubes3d import build_3d_tubes
-from cylinder_growth import run_cylinder_growth
+# NOTE: 3D-specific stages (tubes3d + cylinder_growth) are imported lazily
+# inside the 3D branch so 2D-only runs don't require their dependencies.
 
 
 def run_single_sample(csv_path: Path,
@@ -56,7 +62,10 @@ def run_single_sample(csv_path: Path,
     Parameters
     ----------
     csv_path : Path
-        Path to one CSV file with columns X,Y,Z,TraceID.
+        Path to one CSV file.
+        Accepted schemas:
+            * 3D: X,Y,Z,TraceID
+            * 2D: X,Y,TraceID
     results_root : Path
         Parent directory for all sample‑specific results.
     """
@@ -65,8 +74,14 @@ def run_single_sample(csv_path: Path,
 
     df, ok = load_localization_table(csv_path)
     if not ok:
-        print(f"[SKIP] {csv_path} does not contain usable X,Y,Z,TraceID.")
+        print(f"[SKIP] {csv_path} does not contain usable X,Y,(Z),TraceID.")
         return
+
+    is_3d = bool(df.attrs.get("is_3d", True))
+
+    if not is_3d:
+        print(f"[INFO] {base}: input appears 2D (no Z column). "
+              "A Z=0 column will be used; 3D stages will be skipped.")
 
     sample_dir = ensure_dir(results_root / base)
     fiji_dir = ensure_dir(sample_dir / f"{base}_FIJI_OUT")
@@ -92,34 +107,42 @@ def run_single_sample(csv_path: Path,
         sample_dir,
     )
 
-    # 3D tubes from TraceID averages
-    df_avg, assigned_gid, seg_xyz_3d = build_3d_tubes(
-        df_ids=df,
-        segments=segments,
-        merged_group_id=merged_group_id,
-        info=kde_info,
-        base_name=base,
-        results_dir=sample_dir,
-    )
+    if is_3d:
+        # Lazy imports so 2D-only runs don't pull in 3D plotting modules.
+        from tubes3d import build_3d_tubes
+        from cylinder_growth import run_cylinder_growth
 
-    # Cylinder growth + metrics; propagate labels back to df and df_avg
-    df_avg_out, df_ids_out, fiber_metrics = run_cylinder_growth(
-        df_ids=df,
-        df_avg=df_avg,
-        assigned_gid=assigned_gid,
-        base_name=base,
-        results_dir=sample_dir,
-    )
+        # 3D tubes from TraceID averages
+        df_avg, assigned_gid, seg_xyz_3d = build_3d_tubes(
+            df_ids=df,
+            segments=segments,
+            merged_group_id=merged_group_id,
+            info=kde_info,
+            base_name=base,
+            results_dir=sample_dir,
+        )
 
-    # Save labelled CSVs
-    df_avg_out.to_csv(
-        sample_dir / f"{base}_TraceID_avg_with_fiber_grow_id.csv",
-        index=False
-    )
-    df_ids_out.to_csv(
-        sample_dir / f"{base}_localizations_with_fiber_grow_id.csv",
-        index=False
-    )
+        # Cylinder growth + metrics; propagate labels back to df and df_avg
+        df_avg_out, df_ids_out, fiber_metrics = run_cylinder_growth(
+            df_ids=df,
+            df_avg=df_avg,
+            assigned_gid=assigned_gid,
+            base_name=base,
+            results_dir=sample_dir,
+        )
+
+        # Save labelled CSVs
+        df_avg_out.to_csv(
+            sample_dir / f"{base}_TraceID_avg_with_fiber_grow_id.csv",
+            index=False
+        )
+        df_ids_out.to_csv(
+            sample_dir / f"{base}_localizations_with_fiber_grow_id.csv",
+            index=False
+        )
+    else:
+        print(f"[INFO] {base}: skipping 3D tube building and cylinder growth "
+              "(2D input).")
 
     print(f"[DONE] Sample '{base}' completed. "
           f"Results in: {sample_dir}")

@@ -23,7 +23,10 @@ class PipelineConfig:
     """
 
     # -------------------- I/O --------------------
-    # Folder containing localization CSVs (each must have X,Y,Z,TraceID).
+    # Folder containing localization CSVs.
+    # Accepted schemas:
+    #   * 3D: X,Y,Z,TraceID
+    #   * 2D: X,Y,TraceID   (Z will be synthesized as 0.0; 3D stages skipped)
     input_dir: str = "/data4/Raw localizations & confocal/3D/localization_csvs"
 
     # Parent directory where results are stored.
